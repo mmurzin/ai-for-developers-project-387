@@ -1,0 +1,28 @@
+.DS_Store
+# IDE-мусор (JetBrains) — не тащить настройки редактора в репо
+.idea/
+node_modules/
+
+# typespec: emit сконфигурирован прямо в api/, но соседние эмиттеры
+# по умолчанию пишут в tsp-output/ — не закоммитить случайно
+tsp-output/
+
+# embedded frontend build: only the placeholder index.html is tracked
+internal/web/dist/*
+!internal/web/dist/index.html
+!internal/web/dist/assets/
+internal/web/dist/assets/*
+!internal/web/dist/assets/.gitkeep
+
+# sqlite databases (DB_PATH default & local runs), включая WAL-соседи
+*.db
+*.db-shm
+*.db-wal
+
+# playwright e2e: артефакты прогонов и throwaway-бинарь/база
+test-results/
+playwright-report/
+tmp/
+
+# test reports (junit)
+reports/

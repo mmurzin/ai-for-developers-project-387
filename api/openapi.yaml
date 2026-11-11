@@ -1,0 +1,376 @@
+openapi: 3.0.0
+info:
+  title: Call Calendar API
+  version: 0.0.1
+tags: []
+paths:
+  /api/call-types:
+    post:
+      operationId: createCallType
+      description: Создать Тип звонка (Владелец страницы).
+      parameters: []
+      responses:
+        '201':
+          description: Тип звонка создан.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallType'
+        '409':
+          description: |-
+            Конфликт: дубликат идентификатора Типа звонка или время, занятое
+            активной Записью (интервалы полуоткрытые, примыкание не конфликт).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: Ошибка валидации данных запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCallTypeRequest'
+    get:
+      operationId: listCallTypes
+      description: 'Список Типов звонков (публично: их видит Гость).'
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallTypeList'
+  /api/call-types/{id}/slots:
+    get:
+      operationId: listSlots
+      description: |-
+        Слоты Типа звонка (публично: их видит Гость): вычисленная сетка
+        на Окно записи — 14 календарных дней со следующего дня,
+        Рабочие часы 9:00–18:00 Europe/Moscow, старты каждые 15 минут.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotList'
+        '404':
+          description: Ресурс не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/calls:
+    post:
+      operationId: createCall
+      description: |-
+        Создать Запись (Гость) на выбранный Слот: длительность — из Типа
+        звонка. Пересечение с активной Записью любого Типа звонка — 409;
+        ошибки данных (неизвестный тип, пустые имя/контакт, прошлое,
+        вне Окна записи или Рабочих часов, старт не на сетке, кривая дата)
+        — 422 с machine-readable кодом.
+      parameters: []
+      responses:
+        '201':
+          description: Запись создана.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Call'
+        '409':
+          description: |-
+            Конфликт: дубликат идентификатора Типа звонка или время, занятое
+            активной Записью (интервалы полуоткрытые, примыкание не конфликт).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: Ошибка валидации данных запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCallRequest'
+    get:
+      operationId: listCalls
+      description: |-
+        Предстоящие Записи всех Типов звонков одним списком (Владелец
+        страницы, без входа): ещё не начавшиеся (начало >= текущего
+        момента), отсортированные по началу. Отсутствие `range` — 400,
+        значение не из enum — 422 с кодом `invalid_call_range`.
+      parameters:
+        - name: range
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/CallRange'
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CallList'
+        '422':
+          description: Ошибка валидации данных запроса.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /health:
+    get:
+      operationId: health
+      description: Проверка живости сервиса.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+components:
+  schemas:
+    Call:
+      type: object
+      required:
+        - callTypeId
+        - callTypeName
+        - durationMinutes
+        - startsAt
+        - endsAt
+        - guestName
+        - guestContact
+      properties:
+        callTypeId:
+          type: string
+          description: Идентификатор Типа звонка, на который создана Запись.
+        callTypeName:
+          type: string
+          description: Название Типа звонка на момент создания Записи (для показа Гостю и Владельцу).
+        durationMinutes:
+          type: integer
+          format: int32
+          description: Длительность звонка в минутах — из Типа звонка.
+        startsAt:
+          type: string
+          format: date-time
+          description: Начало Звонка; ISO 8601 с явным смещением часового пояса.
+        endsAt:
+          type: string
+          format: date-time
+          description: 'Конец Звонка: начало плюс Длительность звонка Типа звонка.'
+        guestName:
+          type: string
+          description: Имя Гостя.
+        guestContact:
+          type: string
+          description: 'Контакт Гостя: как связаться по поводу Звонка.'
+      description: |-
+        Запись: забронированный Звонок Гостя с Владельцем страницы (GLOSSARY.md).
+
+        Название и Длительность звонка Типа звонка дублируются в Записи
+        сознательно: экран подтверждения Гостя и предстоящие Звонки (#17)
+        показывают их без отдельного запроса; Типы звонков не редактируются,
+        поэтому рассинхронизоваться значения не могут. endsAt вычисляет
+        сервер: startsAt + Длительность звонка Типа звонка.
+    CallList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Call'
+          description: Записи выбранного диапазона; предстоящие — по возрастанию начала.
+      description: Список Записей. Пустой список — валидный ответ.
+    CallRange:
+      type: string
+      enum:
+        - upcoming
+      description: |-
+        Диапазон списка Записей. `upcoming` — предстоящие: ещё не
+        начавшиеся Записи (граница: начало >= текущего момента).
+    CallType:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          description: 'Идентификатор: строковый, задаёт Владелец страницы.'
+        name:
+          type: string
+          description: Название для отображения Гостю.
+        description:
+          type: string
+          description: Описание Типа звонка.
+        durationMinutes:
+          type: integer
+          format: int32
+          description: 'Длительность звонка в минутах: целое от 5 до 240.'
+      description: 'Тип звонка: набор параметров, который задаёт Владелец страницы.'
+    CallTypeList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CallType'
+          description: Созданные Типы звонков.
+      description: Список Типов звонков.
+    CreateCallRequest:
+      type: object
+      required:
+        - callTypeId
+        - startsAt
+        - guestName
+        - guestContact
+      properties:
+        callTypeId:
+          type: string
+          description: Идентификатор Типа звонка.
+        startsAt:
+          type: string
+          format: date-time
+          description: Время начала Слота; ISO 8601 с явным смещением часового пояса.
+        guestName:
+          type: string
+          description: Имя Гостя.
+        guestContact:
+          type: string
+          description: 'Контакт Гостя: как связаться по поводу Звонка.'
+      description: |-
+        Данные для создания Записи (Гость). Длительность не передаётся:
+        она берётся из Типа звонка, endsAt вычисляет сервер. Запись
+        создаётся на выбранный Слот: начало — на сетке стартов внутри
+        Рабочих часов и Окна записи, без пересечения с активными Записями.
+    CreateCallTypeRequest:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - durationMinutes
+      properties:
+        id:
+          type: string
+          description: 'Идентификатор: строковый, задаёт Владелец страницы.'
+        name:
+          type: string
+          description: Название для отображения Гостю.
+        description:
+          type: string
+          description: Описание Типа звонка.
+        durationMinutes:
+          type: integer
+          format: int32
+          description: 'Длительность звонка в минутах: целое от 5 до 240.'
+      description: Данные для создания Типа звонка.
+    ErrorBody:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable код ошибки.
+        message:
+          type: string
+          description: Сообщение для человека.
+      description: |-
+        Тело ошибки: machine-readable код + сообщение для человека.
+
+        Коды (snake_case), используемые сервисом:
+        - `malformed_json` — тело запроса не является корректным JSON (400);
+        - `invalid_field_type` — поле запроса имеет неверный тип,
+        например нецелая длительность (422);
+        - `invalid_date_format` — поле-дата (например startsAt Записи)
+        не парсится как ISO 8601 дата-время со смещением (422);
+        - `empty_id` — пустой идентификатор Типа звонка (422);
+        - `empty_name` — пустое название Типа звонка (422);
+        - `duration_out_of_range` — Длительность звонка вне 5–240 минут (422);
+        - `duplicate_id` — идентификатор Типа звонка уже существует (409);
+        - `call_type_not_found` — Тип звонка по идентификатору не найден (404);
+        - `unknown_call_type` — Тип звонка при создании Записи не найден (422);
+        - `empty_guest_name` — пустое имя Гостя (422);
+        - `empty_guest_contact` — пустой контакт Гостя (422);
+        - `starts_at_in_past` — время начала Записи в прошлом (422);
+        - `outside_booking_window` — начало вне Окна записи — 14 календарных
+        дней со следующего дня (422);
+        - `outside_working_hours` — начало вне Рабочих часов или Запись
+        не вписывается в них целиком с учётом Длительности звонка (422);
+        - `start_not_on_grid` — старт не на сетке Слотов: не кратен 15 минутам
+        от начала Рабочих часов (422);
+        - `slot_taken` — время пересекается с активной Записью любого
+        Типа звонка (409);
+        - `missing_query_param` — обязательный query-параметр отсутствует,
+        например `range` у списка Записей (400);
+        - `invalid_query_param` — query-параметр не разобран (400);
+        - `invalid_call_range` — значение `range` не из известных
+        (единственное валидное — `upcoming`) (422);
+    HealthStatus:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Текущее состояние; живой сервис отвечает "ok".
+      description: Ответ проверки живости сервиса.
+    Slot:
+      type: object
+      required:
+        - startsAt
+        - endsAt
+      properties:
+        startsAt:
+          type: string
+          format: date-time
+          description: Начало Слота; ISO 8601 с явным смещением часового пояса.
+        endsAt:
+          type: string
+          format: date-time
+          description: 'Конец Слота: начало плюс Длительность звонка Типа звонка.'
+      description: |-
+        Слот: свободное место для Звонка внутри Окна записи и Рабочих часов,
+        вмещающее Звонок выбранного Типа звонка целиком (GLOSSARY.md).
+        Вычисляется на лету, не хранится.
+    SlotList:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+          description: Свободные Слоты внутри Окна записи, по порядку времени.
+      description: Список Слотов Типа звонка на Окно записи.

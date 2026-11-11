@@ -1,0 +1,28 @@
+#!/bin/sh
+# Локальные стоп-проверки перед коммитом.
+# Активация на клоне: git config core.hooksPath .githooks (см. AGENTS.md).
+
+# Placeholder embed-фронта: ссылки на хэшированные ассеты в index.html означают,
+# что в коммит уходит билд-артефакт вместо placeholder.
+if git diff --cached --name-only --diff-filter=ACMR | grep -qx 'internal/web/dist/index.html'; then
+  if git diff --cached -- internal/web/dist/index.html | grep -Eq '^\+.*assets/index-'; then
+    echo "pre-commit: internal/web/dist/index.html содержит ссылки на билд-ассеты (assets/index-*)." >&2
+    echo "После mise run build файл ожидаемо меняется; верните placeholder и пере-стейджите:" >&2
+    echo "  git checkout -- internal/web/dist/index.html" >&2
+    exit 1
+  fi
+fi
+
+# gofmt на staged .go-файлах: golangci ловит то же, но позже и дороже.
+staged_go=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.go$')
+if [ -n "$staged_go" ]; then
+  gofmt_cmd=gofmt
+  command -v gofmt >/dev/null 2>&1 || gofmt_cmd="mise x -- gofmt"
+  unformatted=$($gofmt_cmd -l $staged_go 2>/dev/null)
+  if [ -n "$unformatted" ]; then
+    echo "pre-commit: gofmt требуется для:" >&2
+    echo "$unformatted" >&2
+    echo "  gofmt -w <файлы>" >&2
+    exit 1
+  fi
+fi

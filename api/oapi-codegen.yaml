@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/v2.8.1/configuration-schema.json
+#
+# Генерация Go-стабов из api/openapi.yaml.
+# std-http-server + strict-server: роутинг на stdlib-мухе (Go 1.22+),
+# без внешних роутеров; хендлеры — типизированные strict-интерфейсы.
+package: api
+output: internal/api/openapi.gen.go
+generate:
+  models: true
+  std-http-server: true
+  strict-server: true

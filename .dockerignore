@@ -1,0 +1,21 @@
+# В образе нужные только: frontend/, cmd/, internal/, go.mod, go.sum
+.git
+.github
+.githooks
+.idea
+.agents
+e2e
+tests
+docs
+api
+tmp
+reports
+test-results
+playwright-report
+**/node_modules
+frontend/dist
+*.db
+*.db-shm
+*.db-wal
+*.md
+mise.toml

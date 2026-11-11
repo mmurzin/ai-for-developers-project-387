@@ -1,0 +1,11 @@
+# Design-first контракт: .tsp → api/openapi.yaml (единственный артефакт-контракт,
+# из которого генерируются Go-стабы и TS-клиент). 3.0.0 — самый совместимый
+# вариант для oapi-codegen/kin-openapi.
+emit:
+  - "@typespec/openapi3"
+options:
+  "@typespec/openapi3":
+    emitter-output-dir: "{project-root}"
+    output-file: "openapi.yaml"
+    openapi-versions: ["3.0.0"]
+    omit-unreachable-types: true

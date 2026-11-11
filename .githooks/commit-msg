@@ -1,0 +1,29 @@
+#!/bin/sh
+# Правила заголовков — AGENTS.md «Коммиты».
+# Реализация (feat/fix/refactor/test) обязана ссылаться на тикет (#N).
+
+msg_file="$1"
+head=$(sed -n '1p' "$msg_file")
+
+# Служебные коммиты пропускаем: слияния, реверты, релизы release-please.
+case "$head" in
+"Merge "*|"Revert "*|"chore(main): release "*)
+	exit 0
+	;;
+esac
+
+if ! printf '%s\n' "$head" | grep -qE '^(feat|fix|refactor|docs|test|chore|build|ci)(\([a-z-]+\))?!?: +[^ ]'; then
+	echo "commit-msg: заголовок не по формату: $head" >&2
+	echo "нужно: <type>(<scope>)?: <описание на русском> — например, feat(api): типы звонков через весь стек (#14)" >&2
+	exit 1
+fi
+
+type=$(printf '%s\n' "$head" | sed -E 's/([a-z]+)(\([a-z-]+\))?!?:.*/\1/')
+case "$type" in
+feat | fix | refactor | test)
+	if ! printf '%s\n' "$head" | grep -qE '#[0-9]+'; then
+		echo "commit-msg: коммиты реализации ссылаются на тикет — добавь (#N): $head" >&2
+		exit 1
+	fi
+	;;
+esac

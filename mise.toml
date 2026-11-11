@@ -1,0 +1,114 @@
+[tools]
+go = "1.26.8"
+node = "24.22.2"
+pnpm = "12.16.1"
+golangci-lint = "2.15.0"
+oapi-codegen = "2.8.1"
+gotestsum = "1.13.0"
+"go:github.com/fe3dback/go-arch-lint" = "1.19.1"
+gh = "2.103.3"
+# Playwright как mise-инструмент: спеки в e2e/ живут без package.json
+# в корне (репо — не npm-пакет); спеки импортируют "@playwright/test",
+# а не "playwright/test" — работает только с этим именем пакета.
+"npm:@playwright/test" = "1.64.1"
+
+[tasks.dev]
+depends = ["run", "frontend-dev"]
+run = "echo 'бэк: http://localhost:8080/health — фронт: http://localhost:5173'"
+
+[tasks.check]
+run = ["mise run lint", "mise run test", "mise run frontend-test", "mise run e2e", "mise run api-check"]
+
+[tasks.api-install]
+dir = "api"
+run = "pnpm install"
+
+[tasks.build]
+run = [
+  "mise run frontend-build",
+  "rm -rf internal/web/dist && cp -R frontend/dist internal/web/dist",
+  "go build ./...",
+]
+
+[tasks.run]
+run = "go run ./cmd/server"
+
+[tasks.test]
+run = "gotestsum ./..."
+
+[tasks.test-junit]
+run = "mkdir -p reports && GOTESTSUM_JUNITFILE=reports/junit-go.xml gotestsum ./..."
+
+[tasks.frontend-test]
+dir = "frontend"
+run = "pnpm test"
+
+[tasks.frontend-test-junit]
+dir = "frontend"
+run = "pnpm run test:junit"
+
+[tasks.lint]
+run = ["golangci-lint run", "pnpm --dir frontend lint"]
+
+# Design-first пайплайн: .tsp → openapi.yaml → Go-стабы + TS-клиент.
+# pnpm run (не exec): pnpm 12 сам доустанавливает зависимости перед run-скриптами.
+[tasks.generate]
+run = [
+  "pnpm --dir api run compile",
+  "oapi-codegen -config api/oapi-codegen.yaml api/openapi.yaml",
+  "pnpm --dir frontend run gen:api",
+]
+
+# Дрейф-контроль: правки только в api/**/*.tsp, всё остальное — производные.
+# Локально удобно: упало → перегенерировано в рабочем дереве, коммить и иди дальше.
+[tasks.api-check]
+run = ["mise run generate", "git diff --exit-code -- api/openapi.yaml internal/api/openapi.gen.go frontend/src/api"]
+
+[tasks.frontend-install]
+dir = "frontend"
+run = "pnpm install"
+
+[tasks.frontend-dev]
+dir = "frontend"
+run = "pnpm dev"
+
+[tasks.frontend-build]
+dir = "frontend"
+run = "pnpm build"
+
+# Сборка docker-образа (без push): проверка, что образ собирается.
+# В check не включён — требует запущенного Docker-демона.
+[tasks.docker-build]
+run = "docker build -t call-calendar-387 ."
+
+# Браузерные тесты (Playwright как mise-инструмент, без package.json в корне):
+# против настоящего сервера — собранного бинаря с embed-фронтом.
+[tasks.e2e-install]
+run = "playwright install chromium"
+# идемпотентно: если браузеры на месте — мгновенный no-op
+
+# Сборка e2e-бинаря: build прогоняет фронт и копирует его в internal/web/dist,
+# поэтому go build зашивает в бинарь настоящий SPA, а не placeholder.
+[tasks.e2e-build]
+depends = ["build"]
+run = [
+  "mkdir -p tmp",
+  "go build -o tmp/e2e-server ./cmd/server",
+]
+
+[tasks.e2e]
+depends = ["e2e-install", "e2e-build"]
+run = [
+  "rm -f tmp/e2e.db",
+  "playwright test -c e2e/playwright.config.ts",
+]
+
+[tasks.e2e-junit]
+depends = ["e2e-install", "e2e-build"]
+run = [
+  "rm -f tmp/e2e.db",
+  "mkdir -p reports",
+  # outputFile для junit-репортера задаётся env (CLI-флага нет);
+  # путь абсолютный: playwright резолвит его относительно директории конфига
+  "PLAYWRIGHT_JUNIT_OUTPUT_NAME=\"$PWD/reports/junit-e2e.xml\" playwright test -c e2e/playwright.config.ts --reporter=junit",
+]

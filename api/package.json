@@ -1,0 +1,15 @@
+{
+  "name": "api",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "scripts": {
+    "compile": "tsp compile ."
+  },
+  "devDependencies": {
+    "@typespec/compiler": "^1.17.0",
+    "@typespec/http": "^1.17.0",
+    "@typespec/openapi": "^1.17.0",
+    "@typespec/openapi3": "^1.17.0"
+  }
+}
