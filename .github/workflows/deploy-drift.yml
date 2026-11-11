@@ -1,0 +1,53 @@
+# Ретро: auto-Deploy Render однажды молча умер на несколько мерджей,
+# при зелёном CI. Проверка: последний деплой соответствует main, и среди
+# деплоев этого коммита есть live (деплой в сборке — не дрейф, пропускаем).
+
+name: deploy-drift
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Сравнить прод с main
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE: srv-dbqc9obbc2fs73cvrhh0
+        run: |
+          set -euo pipefail
+
+          main="$(git rev-parse HEAD)"
+          deploys="$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$SERVICE/deploys?limit=5")"
+
+          latest="$(jq -r '.[0].deploy.commit.id' <<<"$deploys")"
+          live="$(jq -r --arg c "$main" \
+            '[.[] | select(.deploy.commit.id == $c and .deploy.status == "live")] | length' <<<"$deploys")"
+          building="$(jq -r --arg c "$main" \
+            '[.[] | select(.deploy.commit.id == $c and (.deploy.status == "created" or .deploy.status == "queued" or .deploy.status == "build_in_progress" or .deploy.status == "update_in_progress"))] | length' <<<"$deploys")"
+
+          echo "main=$main prod_latest=$latest live_for_main=$live building_for_main=$building"
+
+          if [ "$latest" != "$main" ]; then
+            echo "::error::Прод отстаёт: последний деплой $latest, main $main — автодеплой не сработал или сборка не запустилась"
+            exit 1
+          fi
+          if [ "$live" -ge 1 ]; then
+            echo "Прод синхронен с main"
+            exit 0
+          fi
+          if [ "$building" -ge 1 ]; then
+            echo "Деплой main ещё собирается — дрейф не подтверждён, проверит следующий прогон"
+            exit 0
+          fi
+          echo "::error::Для коммита main нет live-деплоя (сборка упала или сервис приостановлен)"
+          exit 1

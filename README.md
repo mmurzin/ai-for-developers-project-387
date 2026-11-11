@@ -1,6 +1,6 @@
 # Календарь звонков
 
-Демо-стенд Render: сервис `call-calendar-387`; публичный адрес будет добавлен после первого деплоя.
+Публичная демо-страница: **https://call-calendar-387-ygnw.onrender.com**
 
 [![hexlet-check](https://github.com/mmurzin/ai-for-developers-project-387/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/mmurzin/ai-for-developers-project-387/actions)
 
