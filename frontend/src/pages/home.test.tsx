@@ -55,12 +55,12 @@ test("гость видит Типы звонков с названием, оп�
   )
 })
 
-test("с главной есть ссылка на админку", async () => {
+test("с главной есть ссылка на Панель владельца", async () => {
   vi.spyOn(client, "get").mockResolvedValue(okResponse(200, { items: [] }) as never)
 
   renderHome()
 
-  expect(screen.getByRole("link", { name: "Управление типами звонков" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: "Панель владельца" })).toHaveAttribute(
     "href",
     "/admin",
   )
