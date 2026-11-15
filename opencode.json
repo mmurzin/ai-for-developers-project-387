@@ -1,5 +1,23 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "permissions": [
+    {
+      "action": "external_directory",
+      "resource": "/home/runner/*",
+      "effect": "allow"
+    }
+  ],
+  "agents": {
+    "build": {
+      "permissions": [
+        {
+          "action": "external_directory",
+          "resource": "/home/runner/*",
+          "effect": "allow"
+        }
+      ]
+    }
+  },
   "mcp": {
     "shadcn": {
       "type": "local",
