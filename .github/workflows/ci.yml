@@ -3,16 +3,27 @@ name: ci
 on:
   push:
     branches:
-      - '**'
+      - main
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  # PR отменяет свои устаревшие прогоны; пуш в main — отдельная группа
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
 
       - run: mise run api-check
       - run: mise run lint
@@ -26,7 +37,7 @@ jobs:
       # образ не пушится: шаг ловит поломку Dockerfile/сборки в контейнере
       - run: mise run docker-build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: junit-reports
           path: reports/*.xml

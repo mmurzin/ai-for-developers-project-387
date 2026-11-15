@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/jdx/jactionlint/main/schema/jactionlint-config.json
+#
+# Исключения из проверок воркфлоу — только здесь, с причиной и датой пересмотра:
+# после expires правило expired-ignore (correctness-профиль) уронит проверку.
+# Сгенерированные файлы (hexlet-check.yml с баннером «automatically generated»)
+# jactionlint пропускает сам: generated-files: skip-policy по умолчанию.
+ignores:
+  - rule: dangerous-triggers
+    file: .github/workflows/opencode.yml
+    reason: >-
+      issue_comment необходим для /oc-команд агенту opencode: запуск ограничен
+      гейтом author_association (OWNER/MEMBER/COLLABORATOR) и отсевом ботов,
+      код PR не выполняется (checkout только default branch), экшен запинен
+      по SHA.
+    expires: "2027-02-15"
