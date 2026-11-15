@@ -48,7 +48,7 @@ export function Home() {
           to="/admin"
           className="text-muted-foreground underline-offset-4 text-sm hover:underline"
         >
-          Управление типами звонков
+          Панель владельца
         </Link>
       </div>
     </div>
