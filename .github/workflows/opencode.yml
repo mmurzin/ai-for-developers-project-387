@@ -1,0 +1,53 @@
+# Агент opencode по комментариям: «/oc …» или «/opencode …» в issue или PR
+# (https://opencode.ai/docs/github/). Комментарии ботов и посторонних
+# игнорируются гейтом ниже; код из PR не выполняется — checkout только
+# default branch.
+#
+# Авторизация: GitHub App «opencode-agent» (https://github.com/apps/opencode-agent).
+# Экшен обменивает OIDC-токен раннера (id-token: write) на токен приложения —
+# им агент комментирует и пушит ветки, а GITHUB_TOKEN job'а остаётся read-only.
+name: opencode
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions: {}
+
+# Один запуск на задачу: повторная команда в том же issue/PR отменяет
+# предыдущий запуск (|| run_id — нейтральный фолбэк, если номера нет).
+concurrency:
+  group: opencode-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  opencode:
+    # Репо публичное: без проверки автора любой комментатор запускал бы агента
+    # за счёт квоты Z.AI и минут Actions (и получал бы секрет на раннер).
+    if: >-
+      (contains(github.event.comment.body, '/oc') ||
+       contains(github.event.comment.body, '/opencode')) &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+      github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      id-token: write # OIDC-обмен на токен GitHub App opencode-agent
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run OpenCode
+        uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a # latest (проверен 2026-11-15)
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+        with:
+          model: zai-coding-plan/glm-5.3
+          mentions: /opencode,/oc
+          share: "true"

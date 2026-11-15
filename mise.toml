@@ -11,6 +11,10 @@ gh = "2.103.3"
 # в корне (репо — не npm-пакет); спеки импортируют "@playwright/test",
 # а не "playwright/test" — работает только с этим именем пакета.
 "npm:@playwright/test" = "1.64.1"
+# jactionlint (форк actionlint) + shellcheck: статический анализ .github/workflows
+# (пины по SHA, права, тайм-ауты, инъекции); исключения — .github/jactionlint.yaml
+jactionlint = "2.6.0"
+shellcheck = "0.10.0"
 
 [tasks.dev]
 depends = ["run", "frontend-dev"]
@@ -48,7 +52,7 @@ dir = "frontend"
 run = "pnpm run test:junit"
 
 [tasks.lint]
-run = ["golangci-lint run", "pnpm --dir frontend lint"]
+run = ["golangci-lint run", "pnpm --dir frontend lint", "jactionlint"]
 
 # Design-first пайплайн: .tsp → openapi.yaml → Go-стабы + TS-клиент.
 # pnpm run (не exec): pnpm 12 сам доустанавливает зависимости перед run-скриптами.
