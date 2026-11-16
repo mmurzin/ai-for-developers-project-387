@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Link } from "react-router"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,7 +39,7 @@ export function CallTypes() {
   }
 
   return (
-    <div className="flex min-h-svh justify-center p-6">
+    <div className="flex justify-center p-6">
       <div className="flex w-full max-w-xl flex-col gap-8">
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-medium">Типы звонков</h1>
@@ -48,12 +47,6 @@ export function CallTypes() {
             Создавайте Типы звонков: Гость увидит их на главной странице и
             сможет записаться.
           </p>
-          <Link
-            to="/admin/upcoming"
-            className="text-muted-foreground underline-offset-4 text-sm hover:underline"
-          >
-            Предстоящие →
-          </Link>
         </header>
 
         <form

@@ -77,7 +77,7 @@ test("пустой список предстоящих — валидное со
   expect(await screen.findByText("Предстоящих Записей нет.")).toBeInTheDocument()
 })
 
-test("со страницы предстоящих есть путь к Типам звонков", async () => {
+test("в меню панели есть навигация к Типам звонков и на главную", async () => {
   vi.spyOn(client, "get").mockResolvedValue(
     okResponse(200, { items: [] }) as never,
   )
@@ -85,6 +85,10 @@ test("со страницы предстоящих есть путь к Типа
   renderUpcoming()
 
   expect(
-    await screen.findByRole("link", { name: "← Типы звонков" }),
+    await screen.findByRole("link", { name: "Типы звонков" }),
   ).toHaveAttribute("href", "/admin")
+  expect(screen.getByRole("link", { name: "На главную" })).toHaveAttribute(
+    "href",
+    "/",
+  )
 })
