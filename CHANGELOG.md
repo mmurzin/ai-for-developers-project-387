@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/mmurzin/ai-for-developers-project-387/compare/v0.1.0...v0.2.0) (2026-11-16)
+
+
+### Features
+
+* **frontend:** переработать панель владельца в оболочку с меню ([#10](https://github.com/mmurzin/ai-for-developers-project-387/issues/10)) ([8df9779](https://github.com/mmurzin/ai-for-developers-project-387/commit/8df9779467ca7c26d554099ac632e93f27cffc15))
+
+
+### Bug Fixes
+
+* **frontend:** заголовок и язык корневой страницы ([#12](https://github.com/mmurzin/ai-for-developers-project-387/issues/12)) ([4d28019](https://github.com/mmurzin/ai-for-developers-project-387/commit/4d28019b6263f811a35774ec64cb9fe752a8fef9))
+
 ## [0.1.0](https://github.com/mmurzin/ai-for-developers-project-387/compare/v0.3.0...v0.1.0) (2026-11-16)
 
 
