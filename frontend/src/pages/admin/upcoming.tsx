@@ -1,5 +1,3 @@
-import { Link } from "react-router"
-
 import { formatDayLabel, formatSlotTime } from "@/lib/slots"
 import { useUpcoming } from "@/lib/upcoming"
 
@@ -11,7 +9,7 @@ export function Upcoming() {
   const { items, error } = useUpcoming()
 
   return (
-    <div className="flex min-h-svh justify-center p-6">
+    <div className="flex justify-center p-6">
       <div className="flex w-full max-w-xl flex-col gap-8">
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-medium">Предстоящие</h1>
@@ -19,12 +17,6 @@ export function Upcoming() {
             Записи всех типов звонков одним списком — по времени начала.
             Время указано со смещением часового пояса инстанса.
           </p>
-          <Link
-            to="/admin"
-            className="text-muted-foreground underline-offset-4 text-sm hover:underline"
-          >
-            ← Типы звонков
-          </Link>
         </header>
 
         {error ? (
