@@ -1,0 +1,137 @@
+# Периодический аудит прода ИИ-агентом opencode: раз в сутки (и вручную)
+# агент прогоняет HTTP-смоук демо-стенда, опрашивает Render API, пишет отчёт
+# (artifact, не коммит) и заводит issue по находкам — с дедупликацией по
+# fingerprint, чтобы повторный прогон не плодил дубликаты.
+#
+# От deploy-drift отличается уровнем: drift следит за метаданными деплоев,
+# здесь же агент проверяет фактическое поведение прода по HTTP и за собой
+# оставляет наблюдаемый след (issue с находкой).
+#
+# Авторизация: use_github_token — GITHUB_TOKEN job'а (issues: write, без
+# OIDC-обмена); модель — как у агента в комментариях, ключ ZHIPU_API_KEY.
+
+name: prod-audit
+
+on:
+  schedule:
+    - cron: "23 6 * * *" # раз в сутки, UTC
+  workflow_dispatch:
+    inputs:
+      study_probe:
+        description: 'Учебная заведомо падающая проверка (демонстрация issue-сценария)'
+        type: boolean
+        default: false
+
+permissions: {} # права выдаёт job аудита
+
+# Аудиты не параллелятся: новый запуск ждёт очереди, а не обрывает
+# предыдущий (сбор фактов о проде нельзя отменять на середине).
+concurrency:
+  group: prod-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # read-only: у агента нет прав коммитить — отчёт уходит в artifact
+      issues: write # создание issue и комментариев по находкам
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false # git-креды агенту не нужны: только чтение
+
+      - name: Run OpenCode
+        uses: anomalyco/opencode/github@77fc88c8ade8e5a620ebbe1197f3a572d29ae91a # latest (проверен 2026-11-15)
+        env:
+          ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+          PROD_URL: https://call-calendar-387-ygnw.onrender.com
+          STUDY_PROBE: ${{ inputs.study_probe }}
+        with:
+          model: zai-coding-plan/glm-5.3
+          use_github_token: true
+          share: "true"
+          prompt: |
+            Ты — аудитор прод-стенда учебного проекта «Календарь звонков». Это
+            автономный прогон по расписанию: работай сам, вопросов не задавай,
+            код в репозитории не меняй, ничего не коммить и не пушь (прав на
+            push нет — и не нужно). Твоя инструкция перекрывает общее правило
+            «агент не создаёт issues» из AGENTS.md: в этом воркфлоу issue по
+            находкам аудита — твоя прямая задача.
+
+            Окружение (переменные уже в env):
+            - PROD_URL — адрес демо-стенда;
+            - RENDER_API_KEY — ключ Render API; сервис Render — srv-dbqc9obbc2fs73cvrhh0;
+            - GH_TOKEN — токен для gh (issue по находкам); репозиторий — текущий,
+              ссылка на запуск собирается из GITHUB_SERVER_URL, GITHUB_REPOSITORY,
+              GITHUB_RUN_ID.
+
+            Инструменты: curl и gh; mise-задачи и тесты проекта не запускай.
+
+            Проверки (фиксируй статус, значимые заголовки, время ответа):
+            1. GET $PROD_URL/health — ожидание: 200, Content-Type: application/json,
+               тело {"status":"ok"}. Сверь все три аспекта: «200 с HTML» — тоже
+               находка. Fingerprint: health-payload.
+            2. GET $PROD_URL/ — ожидание: 200, text/html, в HTML есть «Календарь
+               звонков» и /assets/ (собранный фронт, не заглушка). Fingerprint: spa-index.
+            3. GET $PROD_URL/api/call-types — ожидание: 200, application/json,
+               массив типов звонков. Fingerprint: call-types-api.
+            4. GET $PROD_URL/api/__audit_probe__ — ожидание: ровно 404 (catch-all
+               для неизвестных /api/*). Fingerprint: api-catchall.
+            5. Холодный старт: время самого первого запроса из пунктов выше.
+               Free-тир Render усыпляет стенд — это ожидаемо (см. README) и не
+               дефект, но если первый запрос шёл дольше 10 секунд, зафиксируй
+               наблюдение-вопрос владельцу (принять или держать тёплым).
+               Fingerprint: cold-start.
+            6. Render API, заголовок Authorization: Bearer $RENDER_API_KEY:
+               a. GET /v1/services/srv-dbqc9obbc2fs73cvrhh0 — поле suspended должно
+                  быть not_suspended. Fingerprint: service-suspended.
+               b. GET /v1/services/srv-dbqc9obbc2fs73cvrhh0/deploys?limit=5 —
+                  последний деплой должен соответствовать HEAD этого чекаута
+                  (git rev-parse HEAD) и быть live. build_failed/deactivated —
+                  находка (fingerprint: deploy-failed); отставание прода от main
+                  без падения сборки — только заметка в отчёт (отдельный воркфлоу
+                  deploy-drift); деплой в процессе сборки — не находка.
+            7. Учебная проверка — только если env STUDY_PROBE=true (на расписании
+               всегда выключена). Это заведомо падающая проверка для демонстрации
+               сценария «issue по находке» в учебном проекте. Ожидание: заголовок
+               X-Study-Probe: demo в ответе $PROD_URL/health — его там нет, что
+               и «находится». Fingerprint: study-probe, в заголовке и теле issue
+               обязательна пометка [учебное].
+
+            Находки → issues (метка audit:prod уже существует):
+            - Дедупликация обязательна: перед созданием выполни
+              gh issue list --state open --json number,title,labelNames
+              и поищи открытый issue с тем же fingerprint в заголовке.
+            - Дубликата нет → gh issue create --label "audit:prod"
+              --title "[prod-audit] <fingerprint>: <суть одним предложением>"
+              --body "..." — в теле: что проверялось, ожидание, факт, ссылка на
+              запуск ($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID),
+              серьёзность (дефект / наблюдение). Для study-probe — пометка [учебное].
+            - Дубликат есть → новый issue НЕ создавай; добавь комментарий в
+              существующий: «Воспроизводится <дата UTC>. Запуск: <ссылка на run>».
+            - Чужие issues не закрывай, Closes/Fixes не вписывай.
+
+            Отчёт: файл reports/prod-audit-<дата UTC YYYY-MM-DD>.md (каталог
+            reports/ создай при необходимости). Разделы: шапка (дата UTC, ссылка
+            на запуск, SHA чекаута), таблица проверок (проверка / ожидание /
+            факт / статус), находки (fingerprint → ссылка на issue, «дубликат,
+            прокомментировано» или «находок нет»), краткое резюме. Отчёт остаётся
+            в рабочей копии раннера — его заберёт artifact; не коммить.
+
+            В конце выведи в stdout краткое резюме: сколько проверок зелёных,
+            сколько находок, ссылки на issue — оно попадёт в логи запуска.
+
+      - name: Сохранить отчёт аудита
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prod-audit-report
+          path: reports/prod-audit-*.md
+          if-no-files-found: error # агент не смог написать отчёт — прогон считаем failed
