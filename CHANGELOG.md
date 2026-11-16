@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.0](https://github.com/mmurzin/ai-for-developers-project-387/compare/v0.3.0...v0.1.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **agents:** V1-синтаксис разрешения внешних каталогов раннера ([be6c05a](https://github.com/mmurzin/ai-for-developers-project-387/commit/be6c05a4bd73b7660fbe5df18f7eeb7c1c72ce22))
+* **agents:** V1-синтаксис разрешения внешних каталогов раннера ([3de3868](https://github.com/mmurzin/ai-for-developers-project-387/commit/3de3868554743bac2264f8e910eed05d432a6724))
+* **agents:** разрешить агенту внешние каталоги раннера в CI ([abe0419](https://github.com/mmurzin/ai-for-developers-project-387/commit/abe0419c1c5dfdaa7e70c668a20ff2dabc1e44d4))
+* **agents:** разрешить агенту внешние каталоги раннера в CI ([c2f5824](https://github.com/mmurzin/ai-for-developers-project-387/commit/c2f5824aa4db17e5482d953c58fda2667ebc0a8e))
+* **frontend:** переименовать ссылку на админку в «Панель владельца» ([#4](https://github.com/mmurzin/ai-for-developers-project-387/issues/4)) ([ea89d59](https://github.com/mmurzin/ai-for-developers-project-387/commit/ea89d5966fbd3020fc03e02df6709e849b98ca29))
+
 ## [0.3.0](https://github.com/mmurzin/ai-for-developers-project-386/compare/v0.2.0...v0.3.0) (2026-11-09)
 
 
