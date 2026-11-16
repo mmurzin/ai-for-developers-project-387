@@ -10,6 +10,10 @@ import { addDays, dayKey, firstWindowDay, windowDaysInFirstMonth } from "./dates
 test("гость выбирает тип звонка и видит календарь слотов", async ({ page }) => {
   await page.goto("/")
 
+  // Регресс spa-index (#12): титул вкладки — название продукта,
+  // не скаффолд «vite-app» из шаблона Vite.
+  await expect(page).toHaveTitle("Календарь звонков")
+
   await page.getByRole("link", { name: "Консультация — 30 минут" }).click()
 
   await expect(page.getByRole("heading", { name: "Свободные Слоты" })).toBeVisible()
